@@ -1,0 +1,10 @@
+Virtualizo el entorno
+
+.\venv\Scripts\Activate.ps1>>      
+
+
+Ejecutar FastApi despues de virtualizar
+uvicorn main:app --reload>>        
+
+Ejecutar vue.js despues de virtualizar
+npm run serve
