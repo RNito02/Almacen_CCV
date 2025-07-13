@@ -8,3 +8,6 @@ uvicorn main:app --reload>>
 
 Ejecutar vue.js despues de virtualizar
 npm run serve
+
+Instalar la coneccion con la db y fastapi
+pip install fastapi[all] sqlalchemy psycopg2-binary pydantic

@@ -1,27 +1,62 @@
-from typing import Union
+from fastapi import FastAPI, Depends
+from sqlalchemy.orm import Session
+import models, schemas
+from database import SessionLocal, engine
+from typing import List
+from fastapi import HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 
-from fastapi import FastAPI
-from pydantic import BaseModel
+
+
+
+# Crear las tablas en la base de datos
+models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+origins = [
+    "http://localhost:8080",  # Puerto por defecto donde corre Vue dev server
+]
 
-class Item(BaseModel):
-    name: str
-    price: float
-    is_offer: Union[bool, None] = None
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,  # or ["*"] para permitir todos (no recomendado en prod)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Dependencia para obtener sesión
+def get_db():
+    db = SessionLocal()
+    print("📡 Conectado a la base de datos")  # <-- esto es útil para ver si se abre sesión
+    try:
+        yield db
+    finally:
+        db.close()
+
+@app.post("/post_material/", response_model=schemas.MaterialOut)
+def crear_material(material: schemas.MaterialBase, db: Session = Depends(get_db)):
+    db_material = models.Material(
+        nombre=material.nombre,
+        tipo=material.tipo,
+        cantidad=material.cantidad,
+        color=material.color
+    )
+    db.add(db_material)
+    db.commit()
+    db.refresh(db_material)
+    return db_material
 
 
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
+@app.get("/get_material/", response_model=schemas.MaterialOut)
+def obtener_material(nombre: str = Query(...), db: Session = Depends(get_db)):
+    material = db.query(models.Material).filter(models.Material.nombre == nombre).first()
+    if material is None:
+        raise HTTPException(status_code=404, detail="Material no encontrado")
+    return material
 
-
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: Union[str, None] = None):
-    return {"item_id": item_id, "q": q}
-
-
-@app.put("/items/{item_id}")
-def update_item(item_id: int, item: Item):
-    return {"item_name": item.name, "item_id": item_id}
+@app.get("/get_all_materials/", response_model=List[schemas.MaterialOut])
+def obtener_todos_los_material(db: Session = Depends(get_db)):
+    material = db.query(models.Material).all()
+    return material
